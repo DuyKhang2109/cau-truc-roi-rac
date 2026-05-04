@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đồ Thị — Graph Theory Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #2a3a5c;
+    --accent: #4f8ef7;
+    --accent2: #22d3a5;
+    --accent3: #f97316;
+    --accent4: #a855f7;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --node-default: #4f8ef7;
+    --node-visited: #22d3a5;
+    --node-active: #f97316;
+    --node-path: #a855f7;
+    --edge-default: #4a5568;
+    --edge-highlight: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 52px;
+    flex-shrink: 0;
+  }
+  .logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; white-space: nowrap; }
+  .logo span { color: var(--accent2); }
+
+  .tabs { display: flex; gap: 2px; overflow-x: auto; }
+  .tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { color: var(--accent); background: var(--surface2); }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .toggle-group { display: flex; background: var(--surface2); border-radius: 8px; padding: 3px; gap: 2px; }
+  .toggle-btn {
+    padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: none; background: none; color: var(--muted); transition: all 0.15s;
+  }
+  .toggle-btn.active { background: var(--accent); color: #fff; }
+
+  /* Main Layout */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Canvas area */
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(79,142,247,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(34,211,165,0.04) 0%, transparent 50%),
+      var(--bg);
+  }
+  canvas { display: block; cursor: crosshair; }
+  .canvas-hint {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(17,24,39,0.9); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 14px; font-size: 12px; color: var(--muted);
+    pointer-events: none; white-space: nowrap;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 300px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-content { flex: 1; overflow-y: auto; padding: 12px; }
+  .sidebar-content::-webkit-scrollbar { width: 4px; }
+  .sidebar-content::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Section */
+  .section { margin-bottom: 16px; }
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted); margin-bottom: 8px;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s; font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3b7de8; }
+  .btn-success { background: var(--accent2); color: #0a0e1a; }
+  .btn-success:hover { filter: brightness(0.9); }
+  .btn-warning { background: var(--accent3); color: #fff; }
+  .btn-warning:hover { filter: brightness(0.9); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { filter: brightness(0.9); }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-purple { background: var(--accent4); color: #fff; }
+  .btn-full { width: 100%; justify-content: center; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* Input */
+  .input-group { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .input-label { font-size: 12px; color: var(--muted); min-width: 60px; }
+  input[type="text"], input[type="number"], select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 6px 10px; font-size: 13px; font-family: inherit;
+    outline: none; transition: border 0.15s; flex: 1;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  /* Result box */
+  .result-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; color: var(--text);
+    min-height: 40px; white-space: pre-wrap; max-height: 150px; overflow-y: auto;
+    line-height: 1.6;
+  }
+  .result-box.success { border-color: var(--accent2); color: var(--accent2); }
+  .result-box.error { border-color: var(--red); color: var(--red); }
+  .result-box.info { border-color: var(--accent); color: var(--accent); }
+
+  /* Step controls */
+  .step-controls {
+    display: flex; align-items: center; gap: 6px; padding: 8px 0;
+  }
+  .step-info { font-size: 12px; color: var(--muted); flex: 1; text-align: center; }
+
+  /* Matrix / List display */
+  .matrix-table {
+    border-collapse: collapse; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    width: 100%;
+  }
+  .matrix-table td, .matrix-table th {
+    border: 1px solid var(--border); padding: 4px 6px;
+    text-align: center; min-width: 28px;
+  }
+  .matrix-table th { background: var(--surface2); color: var(--accent); font-size: 10px; }
+  .matrix-table .highlight { background: rgba(79,142,247,0.2); color: var(--accent); }
+  .matrix-wrap { overflow-x: auto; }
+
+  /* Algorithm panel */
+  .algo-panel { display: none; }
+  .algo-panel.active { display: block; }
+
+  /* Status badge */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge-green { background: rgba(34,211,165,0.15); color: var(--accent2); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-blue { background: rgba(79,142,247,0.15); color: var(--accent); }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+  /* Scroll tabs inside sidebar */
+  .algo-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+  .algo-tab {
+    padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
+    color: var(--muted); transition: all 0.15s;
+  }
+  .algo-tab:hover { color: var(--text); }
+  .algo-tab.active { background: var(--accent4); border-color: var(--accent4); color: #fff; }
+
+  /* Node label in result */
+  .node-label { display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; text-align: center; line-height: 20px; margin: 0 2px; }
+
+  /* Repr tabs */
+  .repr-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .repr-tab {
+    flex: 1; text-align: center; padding: 6px; border-radius: 6px; font-size: 12px;
+    font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted); transition: all 0.15s;
+  }
+  .repr-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .page { display: none; }
+  .page.active { display: flex; flex: 1; overflow: hidden; }
+
+  /* Legend */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  .speed-group { display: flex; align-items: center; gap: 6px; }
+  .speed-group label { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Graph<span>Lab</span></div>
+  <div class="tabs" id="mainTabs">
+    <button class="tab active" onclick="showPage('draw')">✏️ Vẽ Đồ Thị</button>
+    <button class="tab" onclick="showPage('traverse')">🔍 Duyệt & Tìm đường</button>
+    <button class="tab" onclick="showPage('repr')">📊 Biểu diễn</button>
+    <button class="tab" onclick="showPage('advanced')">⚡ Nâng cao</button>
+  </div>
+  <div class="header-right">
+    <div class="toggle-group">
+      <button class="toggle-btn active" id="btnUndirected" onclick="setDirected(false)">Vô hướng</button>
+      <button class="toggle-btn" id="btnDirected" onclick="setDirected(true)">Có hướng</button>
+    </div>
+    <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="clearGraph()">🗑 Xóa hết</button>
+  </div>
+</header>
+
+<!-- PAGE: DRAW -->
+<div class="page active" id="page-draw">
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="mainCanvas"></canvas>
+    <div class="canvas-hint" id="canvasHint">Click: thêm đỉnh | Kéo: di chuyển | Shift+Click đỉnh: bắt đầu nối cạnh | Right-click: xóa</div>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-content">
+      <div class="section">
+        <div class="section-title">Thêm đỉnh / cạnh</div>
+        <div class="input-group">
+          <span class="input-label">Tên đỉnh</span>
+          <input type="text" id="nodeLabel" placeholder="A, B, C..." maxlength="3">
+        </div>
+        <div class="input-group">
+          <span class="input-label">Trọng số</span>
+          <input type="number" id="edgeWeight" value="1" min="0" step="1" style="width:70px">
+          <span style="font-size:11px;color:var(--muted)">(cho cạnh)</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="setMode('add')">➕ Thêm đỉnh</button>
+          <button class="btn btn-ghost" onclick="setMode('select')">🔗 Nối cạnh</button>
+          <button class="btn btn-danger" onclick="setMode('delete')">❌ Xóa</button>
+        </div>
+        <div style="margin-top:6px">
+          <span style="font-size:11px;color:var(--muted)">Chế độ: </span>
+          <span id="modeDisplay" style="font-size:12px;color:var(--accent);font-weight:700">Thêm đỉnh</span>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Đồ thị mẫu</div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" style="font-size:11px" onclick="loadSample('basic')">Cơ bản</button>
+          <button class="btn btn-ghost" style="font-size:11px" onclick="loadSample('weighted')">Có trọng số</button>
+          <button class="btn btn-ghost" style="font-size:11px" onclick="loadSample('bipartite')">2 phía</button>
+          <button class="btn btn-ghost" style="font-size:11px" onclick="loadSample('flow')">Luồng</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Lưu / Tải</div>
+        <div class="btn-row">
+          <button class="btn btn-success btn-full" onclick="saveGraph()">💾 Lưu JSON</button>
+          <button class="btn btn-ghost btn-full" onclick="document.getElementById('loadFile').click()">📂 Tải JSON</button>
+        </div>
+        <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadGraphFromFile(event)">
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Thông tin đồ thị</div>
+        <div class="result-box" id="graphInfo">Chưa có đỉnh nào.</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Chú thích màu</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div> Mặc định</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22d3a5"></div> Đã thăm</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Đang xét</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div> Đường đi</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#eab308"></div> Cây khung</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: TRAVERSE -->
+<div class="page" id="page-traverse">
+  <div class="canvas-wrap" id="canvasWrap2">
+    <canvas id="traverseCanvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-content">
+      <div class="section">
+        <div class="section-title">BFS — Duyệt theo chiều rộng</div>
+        <div class="input-group">
+          <span class="input-label">Đỉnh bắt đầu</span>
+          <select id="bfsStart"></select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="runBFS()">▶ Chạy BFS</button>
+          <button class="btn btn-ghost" onclick="resetViz()">↺ Reset</button>
+        </div>
+        <div class="result-box" id="bfsResult" style="margin-top:8px">Nhấn Chạy BFS...</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">DFS — Duyệt theo chiều sâu</div>
+        <div class="input-group">
+          <span class="input-label">Đỉnh bắt đầu</span>
+          <select id="dfsStart"></select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-warning" onclick="runDFS()">▶ Chạy DFS</button>
+          <button class="btn btn-ghost" onclick="resetViz()">↺ Reset</button>
+        </div>
+        <div class="result-box" id="dfsResult" style="margin-top:8px">Nhấn Chạy DFS...</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Dijkstra — Đường đi ngắn nhất</div>
+        <div class="input-group">
+          <span class="input-label">Từ</span>
+          <select id="dijkStart"></select>
+        </div>
+        <div class="input-group">
+          <span class="input-label">Đến</span>
+          <select id="dijkEnd"></select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-purple" onclick="runDijkstra()">▶ Tìm đường</button>
+          <button class="btn btn-ghost" onclick="resetViz()">↺ Reset</button>
+        </div>
+        <div class="result-box" id="dijkResult" style="margin-top:8px">Nhấn Tìm đường...</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Kiểm tra đồ thị 2 phía</div>
+        <button class="btn btn-success btn-full" onclick="checkBipartite()">🔍 Kiểm tra Bipartite</button>
+        <div class="result-box" id="bipartiteResult" style="margin-top:8px">Nhấn để kiểm tra...</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Điều khiển animation</div>
+        <div class="step-controls">
+          <button class="btn btn-ghost" onclick="prevStep()" id="btnPrev">◀</button>
+          <span class="step-info" id="stepInfo">—</span>
+          <button class="btn btn-ghost" onclick="nextStep()" id="btnNext">▶</button>
+        </div>
+        <div class="speed-group">
+          <label>Tốc độ:</label>
+          <input type="range" id="speedSlider" min="100" max="2000" value="700" step="100" style="flex:1">
+          <span id="speedLabel" style="font-size:11px;color:var(--muted)">0.7s</span>
+        </div>
+        <button class="btn btn-primary btn-full" id="btnAutoPlay" onclick="toggleAutoPlay()">▶ Auto Play</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: REPRESENTATIONS -->
+<div class="page" id="page-repr">
+  <div class="canvas-wrap" id="canvasWrap3">
+    <canvas id="reprCanvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-content">
+      <div class="section">
+        <div class="section-title">Chuyển đổi biểu diễn</div>
+        <div class="repr-tabs">
+          <div class="repr-tab active" onclick="showRepr('matrix')">Ma trận kề</div>
+          <div class="repr-tab" onclick="showRepr('adjlist')">Danh sách kề</div>
+          <div class="repr-tab" onclick="showRepr('edgelist')">Danh sách cạnh</div>
+        </div>
+
+        <div id="repr-matrix">
+          <div class="section-title" style="margin-bottom:6px">Ma trận kề (Adjacency Matrix)</div>
+          <div class="matrix-wrap">
+            <div id="matrixDisplay" class="result-box" style="font-size:11px">Chưa có dữ liệu.</div>
+          </div>
+        </div>
+
+        <div id="repr-adjlist" style="display:none">
+          <div class="section-title" style="margin-bottom:6px">Danh sách kề (Adjacency List)</div>
+          <div class="result-box" id="adjListDisplay">Chưa có dữ liệu.</div>
+        </div>
+
+        <div id="repr-edgelist" style="display:none">
+          <div class="section-title" style="margin-bottom:6px">Danh sách cạnh (Edge List)</div>
+          <div class="result-box" id="edgeListDisplay">Chưa có dữ liệu.</div>
+        </div>
+
+        <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="generateReprs()">🔄 Cập nhật biểu diễn</button>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Nhập từ biểu diễn</div>
+        <div class="input-group">
+          <span class="input-label">Loại</span>
+          <select id="inputType">
+            <option value="matrix">Ma trận kề</option>
+            <option value="adjlist">Danh sách kề</option>
+            <option value="edgelist">Danh sách cạnh</option>
+          </select>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+          Ma trận: mỗi hàng là 1 dòng, giá trị cách nhau bởi khoảng trắng<br>
+          Danh sách kề: A: B C D (mỗi dòng)<br>
+          Danh sách cạnh: A B 5 (mỗi dòng: u v [w])
+        </div>
+        <textarea id="inputData" style="width:100%;height:100px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px;font-family:'JetBrains Mono',monospace;resize:vertical;outline:none"></textarea>
+        <div class="input-group" style="margin-top:6px">
+          <span class="input-label">Node labels</span>
+          <input type="text" id="nodeLabelsInput" placeholder="A,B,C,D (tùy chọn)">
+        </div>
+        <button class="btn btn-warning btn-full" style="margin-top:6px" onclick="importFromRepr()">📥 Import đồ thị</button>
+        <div class="result-box" id="importResult" style="margin-top:8px">Nhập dữ liệu và Import...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: ADVANCED -->
+<div class="page" id="page-advanced">
+  <div class="canvas-wrap" id="canvasWrap4">
+    <canvas id="advCanvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-content">
+      <div class="section">
+        <div class="section-title">Chọn thuật toán</div>
+        <div class="algo-tabs">
+          <div class="algo-tab active" onclick="selectAlgo('prim')">Prim</div>
+          <div class="algo-tab" onclick="selectAlgo('kruskal')">Kruskal</div>
+          <div class="algo-tab" onclick="selectAlgo('ford')">Ford-Fulkerson</div>
+          <div class="algo-tab" onclick="selectAlgo('fleury')">Fleury</div>
+          <div class="algo-tab" onclick="selectAlgo('hierholzer')">Hierholzer</div>
+        </div>
+      </div>
+
+      <!-- PRIM -->
+      <div id="algo-prim" class="algo-panel active">
+        <div class="section-title">Prim — Cây khung nhỏ nhất</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Tìm cây khung với tổng trọng số nhỏ nhất</div>
+        <div class="input-group">
+          <span class="input-label">Đỉnh bắt đầu</span>
+          <select id="primStart"></select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="runPrim()">▶ Chạy Prim</button>
+        <div class="result-box" id="primResult" style="margin-top:8px">Nhấn Chạy Prim...</div>
+      </div>
+
+      <!-- KRUSKAL -->
+      <div id="algo-kruskal" class="algo-panel">
+        <div class="section-title">Kruskal — Cây khung nhỏ nhất</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Sắp xếp cạnh theo trọng số, dùng Union-Find</div>
+        <button class="btn btn-primary btn-full" onclick="runKruskal()">▶ Chạy Kruskal</button>
+        <div class="result-box" id="kruskalResult" style="margin-top:8px">Nhấn Chạy Kruskal...</div>
+      </div>
+
+      <!-- FORD-FULKERSON -->
+      <div id="algo-ford" class="algo-panel">
+        <div class="section-title">Ford-Fulkerson — Luồng cực đại</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Tìm luồng cực đại trong mạng luồng. Trọng số = sức chứa.</div>
+        <div class="input-group">
+          <span class="input-label">Nguồn (s)</span>
+          <select id="fordSource"></select>
+        </div>
+        <div class="input-group">
+          <span class="input-label">Đích (t)</span>
+          <select id="fordSink"></select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="runFordFulkerson()">▶ Chạy Ford-Fulkerson</button>
+        <div class="result-box" id="fordResult" style="margin-top:8px">Nhấn Chạy...</div>
+      </div>
+
+      <!-- FLEURY -->
+      <div id="algo-fleury" class="algo-panel">
+        <div class="section-title">Fleury — Đường đi Euler</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Tìm đường đi/chu trình Euler. ĐK: 0 hoặc 2 đỉnh bậc lẻ.</div>
+        <div class="input-group">
+          <span class="input-label">Đỉnh bắt đầu</span>
+          <select id="fleuryStart"></select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="runFleury()">▶ Chạy Fleury</button>
+        <div class="result-box" id="fleuryResult" style="margin-top:8px">Nhấn Chạy Fleury...</div>
+      </div>
+
+      <!-- HIERHOLZER -->
+      <div id="algo-hierholzer" class="algo-panel">
+        <div class="section-title">Hierholzer — Chu trình Euler</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Tìm chu trình Euler hiệu quả. ĐK: tất cả đỉnh có bậc chẵn.</div>
+        <div class="input-group">
+          <span class="input-label">Đỉnh bắt đầu</span>
+          <select id="hierholzerStart"></select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="runHierholzer()">▶ Chạy Hierholzer</button>
+        <div class="result-box" id="hierholzerResult" style="margin-top:8px">Nhấn Chạy Hierholzer...</div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="section">
+        <div class="section-title">Điều khiển animation</div>
+        <div class="step-controls">
+          <button class="btn btn-ghost" onclick="advPrevStep()">◀</button>
+          <span class="step-info" id="advStepInfo">—</span>
+          <button class="btn btn-ghost" onclick="advNextStep()">▶</button>
+        </div>
+        <div class="speed-group">
+          <label>Tốc độ:</label>
+          <input type="range" id="advSpeedSlider" min="100" max="2000" value="800" step="100" style="flex:1">
+        </div>
+        <button class="btn btn-primary btn-full" id="btnAdvAutoPlay" onclick="toggleAdvAutoPlay()">▶ Auto Play</button>
+        <button class="btn btn-ghost btn-full" style="margin-top:6px" onclick="resetAdvViz()">↺ Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== GRAPH DATA =====
+let G = {
+  nodes: [], // {id, label, x, y}
+  edges: [], // {id, u, v, w, directed}
+  directed: false,
+  nextId: 0,
+  nextEdgeId: 0
+};
+
+let mode = 'add'; // 'add', 'select', 'delete'
+let selectedNode = null;
+let draggingNode = null;
+let dragOffX = 0, dragOffY = 0;
+let isDragging = false;
+
+// Visualization state
+let vizSteps = [];
+let vizStep = 0;
+let vizNodeColors = {};
+let vizEdgeColors = {};
+let autoPlayTimer = null;
+let advVizSteps = [];
+let advVizStep = 0;
+let advNodeColors = {};
+let advEdgeColors = {};
+let advEdgeLabels = {};
+let advAutoPlayTimer = null;
+let currentAlgo = 'prim';
+
+// ===== CANVAS SETUP =====
+function getCanvas(id) { return document.getElementById(id); }
+function getCtx(id) { return getCanvas(id).getContext('2d'); }
+
+const CANVASES = ['mainCanvas', 'traverseCanvas', 'reprCanvas', 'advCanvas'];
+const WRAPS = ['canvasWrap', 'canvasWrap2', 'canvasWrap3', 'canvasWrap4'];
+
+function resizeAllCanvases() {
+  CANVASES.forEach((cid, i) => {
+    const wrap = document.getElementById(WRAPS[i]);
+    const canvas = getCanvas(cid);
+    if (wrap && canvas) {
+      canvas.width = wrap.clientWidth;
+      canvas.height = wrap.clientHeight;
+    }
+  });
+  drawAll();
+}
+
+window.addEventListener('resize', resizeAllCanvases);
+
+// ===== PAGE MANAGEMENT =====
+let currentPage = 'draw';
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.tab');
+  const idx = ['draw', 'traverse', 'repr', 'advanced'].indexOf(name);
+  if (idx >= 0) tabs[idx].classList.add('active');
+  currentPage = name;
+  setTimeout(() => {
+    resizeAllCanvases();
+    updateSelects();
+    if (name === 'repr') generateReprs();
+  }, 10);
+}
+
+// ===== DRAWING =====
+function drawAll() {
+  CANVASES.forEach((cid, i) => {
+    const pageName = ['draw', 'traverse', 'repr', 'advanced'][i];
+    const canvas = getCanvas(cid);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    let nc = {}, ec = {}, el = {};
+    if (pageName === 'traverse') { nc = vizNodeColors; ec = vizEdgeColors; }
+    if (pageName === 'advanced') { nc = advNodeColors; ec = advEdgeColors; el = advEdgeLabels; }
+    
+    drawGraph(ctx, canvas, nc, ec, el);
+  });
+  updateGraphInfo();
+}
+
+function drawGraph(ctx, canvas, nodeColors = {}, edgeColors = {}, edgeLabels = {}) {
+  if (!canvas.width || !canvas.height) return;
+  const W = canvas.width, H = canvas.height;
+  
+  // Grid
+  ctx.strokeStyle = 'rgba(42,58,92,0.3)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Edges
+  G.edges.forEach(e => {
+    const nu = G.nodes.find(n => n.id === e.u);
+    const nv = G.nodes.find(n => n.id === e.v);
+    if (!nu || !nv) return;
+    const color = edgeColors[e.id] || '#3a4a6a';
+    const isHighlight = edgeColors[e.id];
+    drawEdge(ctx, nu, nv, e.w, G.directed || e.directed, color, isHighlight, edgeLabels[e.id] || null);
+  });
+
+  // Nodes
+  G.nodes.forEach(n => {
+    const color = nodeColors[n.id] || '#4f8ef7';
+    const isSelected = selectedNode && selectedNode.id === n.id;
+    drawNode(ctx, n, color, isSelected);
+  });
+}
+
+function drawEdge(ctx, nu, nv, w, directed, color, highlight, label) {
+  const dx = nv.x - nu.x, dy = nv.y - nu.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1) return;
+  const R = 22;
+  const sx = nu.x + dx / dist * R, sy = nu.y + dy / dist * R;
+  const ex = nv.x - dx / dist * R, ey = nv.y - dy / dist * R;
+
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(ex, ey);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = highlight ? 3 : 1.5;
+  ctx.stroke();
+
+  // Arrow
+  if (directed) {
+    const angle = Math.atan2(ey - sy, ex - sx);
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - 12 * Math.cos(angle - 0.4), ey - 12 * Math.sin(angle - 0.4));
+    ctx.lineTo(ex - 12 * Math.cos(angle + 0.4), ey - 12 * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // Weight label
+  const mx = (nu.x + nv.x) / 2, my = (nu.y + nv.y) / 2;
+  const nx2 = -dy / dist * 14, ny2 = dx / dist * 14;
+  const wx = mx + nx2, wy = my + ny2;
+  const wText = label !== null ? label : (w !== 1 || highlight ? String(w) : '');
+  if (wText) {
+    ctx.fillStyle = 'var(--surface)';
+    ctx.beginPath();
+    ctx.arc(wx, wy, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = highlight ? '#fff' : '#94a3b8';
+    ctx.font = 'bold 10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(wText, wx, wy);
+  }
+}
+
+function drawNode(ctx, n, color, isSelected) {
+  // Shadow
+  ctx.shadowColor = color;
+  ctx.shadowBlur = isSelected ? 20 : 10;
+  
+  // Circle
+  ctx.beginPath();
+  ctx.arc(n.x, n.y, 22, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  
+  if (isSelected) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+  
+  ctx.shadowBlur = 0;
+  
+  // Label
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${n.label.length > 2 ? 10 : 13}px Space Grotesk`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(n.label, n.x, n.y);
+}
+
+// ===== INTERACTIONS =====
+function getCanvasForPage() {
+  const map = { draw: 'mainCanvas', traverse: 'traverseCanvas', repr: 'reprCanvas', advanced: 'advCanvas' };
+  return getCanvas(map[currentPage]);
+}
+
+function getMousePos(canvas, e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function hitNode(x, y) {
+  return G.nodes.find(n => Math.hypot(n.x - x, n.y - y) < 24) || null;
+}
+
+function setupCanvasEvents(canvasId) {
+  const canvas = getCanvas(canvasId);
+  
+  canvas.addEventListener('mousedown', e => {
+    if (e.button === 2) { handleRightClick(canvas, e); return; }
+    const pos = getMousePos(canvas, e);
+    const hit = hitNode(pos.x, pos.y);
+    
+    if (mode === 'add') {
+      if (!hit) {
+        addNode(pos.x, pos.y);
+      } else {
+        if (e.shiftKey) {
+          if (!selectedNode) {
+            selectedNode = hit;
+          } else if (selectedNode.id !== hit.id) {
+            const w = parseInt(document.getElementById('edgeWeight').value) || 1;
+            addEdge(selectedNode.id, hit.id, w);
+            selectedNode = null;
+          } else {
+            selectedNode = null;
+          }
+        } else {
+          draggingNode = hit;
+          dragOffX = pos.x - hit.x;
+          dragOffY = pos.y - hit.y;
+        }
+      }
+    } else if (mode === 'select') {
+      if (hit) {
+        if (!selectedNode) {
+          selectedNode = hit;
+        } else if (selectedNode.id !== hit.id) {
+          const w = parseInt(document.getElementById('edgeWeight').value) || 1;
+          addEdge(selectedNode.id, hit.id, w);
+          selectedNode = null;
+        } else {
+          selectedNode = null;
+        }
+      }
+    } else if (mode === 'delete') {
+      if (hit) {
+        deleteNode(hit.id);
+      } else {
+        deleteEdgeAt(pos.x, pos.y);
+      }
+    }
+    drawAll();
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (draggingNode) {
+      const pos = getMousePos(canvas, e);
+      draggingNode.x = pos.x - dragOffX;
+      draggingNode.y = pos.y - dragOffY;
+      isDragging = true;
+      drawAll();
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    draggingNode = null;
+    isDragging = false;
+  });
+
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function handleRightClick(canvas, e) {
+  const pos = getMousePos(canvas, e);
+  const hit = hitNode(pos.x, pos.y);
+  if (hit) deleteNode(hit.id);
+  else deleteEdgeAt(pos.x, pos.y);
+  drawAll();
+}
+
+function deleteEdgeAt(x, y) {
+  for (let i = G.edges.length - 1; i >= 0; i--) {
+    const ed = G.edges[i];
+    const nu = G.nodes.find(n => n.id === ed.u);
+    const nv = G.nodes.find(n => n.id === ed.v);
+    if (!nu || !nv) continue;
+    const dist = pointToSegment(x, y, nu.x, nu.y, nv.x, nv.y);
+    if (dist < 10) { G.edges.splice(i, 1); return; }
+  }
+}
+
+function pointToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+
+CANVASES.forEach(id => setupCanvasEvents(id));
+
+// ===== GRAPH OPERATIONS =====
+function addNode(x, y) {
+  let label = document.getElementById('nodeLabel').value.trim();
+  if (!label) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    label = letters[G.nodes.length % 26] + (G.nodes.length >= 26 ? Math.floor(G.nodes.length / 26) : '');
+  }
+  G.nodes.push({ id: G.nextId++, label, x, y });
+  document.getElementById('nodeLabel').value = '';
+  updateSelects();
+}
+
+function addEdge(uid, vid, w = 1) {
+  const exists = G.edges.find(e => e.u === uid && e.v === vid || (!G.directed && e.u === vid && e.v === uid));
+  if (exists) return;
+  G.edges.push({ id: G.nextEdgeId++, u: uid, v: vid, w });
+  updateSelects();
+}
+
+function deleteNode(id) {
+  G.nodes = G.nodes.filter(n => n.id !== id);
+  G.edges = G.edges.filter(e => e.u !== id && e.v !== id);
+  if (selectedNode && selectedNode.id === id) selectedNode = null;
+  updateSelects();
+}
+
+function clearGraph() {
+  G.nodes = []; G.edges = [];
+  G.nextId = 0; G.nextEdgeId = 0;
+  selectedNode = null;
+  resetViz(); resetAdvViz();
+  updateSelects(); drawAll();
+}
+
+function setDirected(d) {
+  G.directed = d;
+  document.getElementById('btnDirected').classList.toggle('active', d);
+  document.getElementById('btnUndirected').classList.toggle('active', !d);
+  drawAll();
+}
+
+function setMode(m) {
+  mode = m;
+  selectedNode = null;
+  const labels = { add: 'Thêm đỉnh', select: 'Nối cạnh', delete: 'Xóa' };
+  document.getElementById('modeDisplay').textContent = labels[m];
+  drawAll();
+}
+
+// ===== UPDATE SELECTS =====
+function updateSelects() {
+  const selects = ['bfsStart', 'dfsStart', 'dijkStart', 'dijkEnd', 'primStart', 'fordSource', 'fordSink', 'fleuryStart', 'hierholzerStart'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = G.nodes.map(n => `<option value="${n.id}">${n.label}</option>`).join('');
+    if (cur) el.value = cur;
+  });
+}
+
+function updateGraphInfo() {
+  const el = document.getElementById('graphInfo');
+  if (!el) return;
+  if (G.nodes.length === 0) { el.textContent = 'Chưa có đỉnh nào.'; return; }
+  const degrees = {};
+  G.nodes.forEach(n => degrees[n.id] = 0);
+  G.edges.forEach(e => {
+    degrees[e.u] = (degrees[e.u] || 0) + 1;
+    if (!G.directed) degrees[e.v] = (degrees[e.v] || 0) + 1;
+    else degrees[e.v] = (degrees[e.v] || 0);
+  });
+  let info = `Đỉnh: ${G.nodes.length}  |  Cạnh: ${G.edges.length}\n`;
+  info += `Loại: ${G.directed ? 'Có hướng' : 'Vô hướng'}\n`;
+  info += `Bậc: ${G.nodes.map(n => `${n.label}(${degrees[n.id]})`).join(', ')}`;
+  el.textContent = info;
+}
+
+// ===== GRAPH INFO =====
+
+// ===== SAVE/LOAD =====
+function saveGraph() {
+  const data = JSON.stringify({ nodes: G.nodes, edges: G.edges, directed: G.directed }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'graph.json';
+  a.click();
+}
+
+function loadGraphFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      G.nodes = data.nodes || [];
+      G.edges = data.edges || [];
+      G.directed = data.directed || false;
+      G.nextId = Math.max(0, ...G.nodes.map(n => n.id + 1));
+      G.nextEdgeId = Math.max(0, ...G.edges.map(e => e.id + 1));
+      setDirected(G.directed);
+      updateSelects(); drawAll();
+    } catch { alert('File JSON không hợp lệ!'); }
+  };
+  reader.readAsText(file);
+}
+
+// ===== SAMPLE GRAPHS =====
+function loadSample(type) {
+  clearGraph();
+  if (type === 'basic') {
+    setDirected(false);
+    const positions = [[200,150],[350,80],[500,150],[500,280],[350,350],[200,280]];
+    ['A','B','C','D','E','F'].forEach((l,i) => G.nodes.push({id:i,label:l,x:positions[i][0],y:positions[i][1]}));
+    G.nextId = 6;
+    [[0,1,1],[1,2,1],[2,3,1],[3,4,1],[4,5,1],[5,0,1],[0,3,1],[1,4,1]].forEach(([u,v,w],i) => G.edges.push({id:i,u,v,w}));
+    G.nextEdgeId = 8;
+  } else if (type === 'weighted') {
+    setDirected(false);
+    const positions = [[150,200],[300,100],[450,200],[300,300],[300,200]];
+    ['A','B','C','D','E'].forEach((l,i) => G.nodes.push({id:i,label:l,x:positions[i][0],y:positions[i][1]}));
+    G.nextId = 5;
+    [[0,1,4],[0,4,2],[1,2,3],[1,4,5],[2,3,2],[3,4,6],[2,4,1]].forEach(([u,v,w],i) => G.edges.push({id:i,u,v,w}));
+    G.nextEdgeId = 7;
+  } else if (type === 'bipartite') {
+    setDirected(false);
+    [[150,120],[150,220],[150,320],[150,420],[400,170],[400,270],[400,370]].forEach((pos,i) => {
+      const l = i < 4 ? 'ABCD'[i] : 'XYZ'[i-4];
+      G.nodes.push({id:i,label:l,x:pos[0],y:pos[1]});
+    });
+    G.nextId = 7;
+    [[0,4,1],[0,5,1],[1,4,1],[1,6,1],[2,5,1],[2,6,1],[3,6,1]].forEach(([u,v,w],i) => G.edges.push({id:i,u,v,w}));
+    G.nextEdgeId = 7;
+  } else if (type === 'flow') {
+    setDirected(true);
+    const pos = [[100,220],[230,120],[230,320],[380,120],[380,320],[510,220]];
+    ['S','A','B','C','D','T'].forEach((l,i) => G.nodes.push({id:i,label:l,x:pos[i][0],y:pos[i][1]}));
+    G.nextId = 6;
+    [[0,1,10],[0,2,8],[1,3,5],[1,2,2],[2,4,10],[3,5,7],[4,3,3],[4,5,10]].forEach(([u,v,w],i) => G.edges.push({id:i,u,v,w}));
+    G.nextEdgeId = 8;
+  }
+  updateSelects(); drawAll();
+}
+
+// ===== VIZ HELPERS =====
+function resetViz() {
+  vizSteps = []; vizStep = 0;
+  vizNodeColors = {}; vizEdgeColors = {};
+  if (autoPlayTimer) { clearInterval(autoPlayTimer); autoPlayTimer = null; document.getElementById('btnAutoPlay').textContent = '▶ Auto Play'; }
+  document.getElementById('stepInfo').textContent = '—';
+  document.getElementById('bfsResult').textContent = 'Nhấn Chạy BFS...';
+  document.getElementById('dfsResult').textContent = 'Nhấn Chạy DFS...';
+  document.getElementById('dijkResult').textContent = 'Nhấn Tìm đường...';
+  document.getElementById('bipartiteResult').textContent = 'Nhấn để kiểm tra...';
+  drawAll();
+}
+
+function applyVizStep() {
+  if (vizSteps.length === 0) return;
+  const step = vizSteps[Math.min(vizStep, vizSteps.length - 1)];
+  vizNodeColors = { ...step.nodeColors };
+  vizEdgeColors = { ...step.edgeColors };
+  document.getElementById('stepInfo').textContent = `Bước ${vizStep + 1}/${vizSteps.length}: ${step.desc || ''}`;
+  drawAll();
+}
+
+function nextStep() { if (vizStep < vizSteps.length - 1) { vizStep++; applyVizStep(); } }
+function prevStep() { if (vizStep > 0) { vizStep--; applyVizStep(); } }
+
+function toggleAutoPlay() {
+  const btn = document.getElementById('btnAutoPlay');
+  if (autoPlayTimer) {
+    clearInterval(autoPlayTimer); autoPlayTimer = null;
+    btn.textContent = '▶ Auto Play';
+  } else {
+    if (vizSteps.length === 0) return;
+    vizStep = 0;
+    const speed = parseInt(document.getElementById('speedSlider').value);
+    document.getElementById('speedLabel').textContent = (speed/1000).toFixed(1) + 's';
+    btn.textContent = '⏸ Pause';
+    autoPlayTimer = setInterval(() => {
+      if (vizStep >= vizSteps.length - 1) {
+        clearInterval(autoPlayTimer); autoPlayTimer = null;
+        btn.textContent = '▶ Auto Play';
+      } else { vizStep++; applyVizStep(); }
+    }, speed);
+    applyVizStep();
+  }
+}
+
+// ===== BFS =====
+function runBFS() {
+  if (G.nodes.length === 0) return;
+  resetViz();
+  const startId = parseInt(document.getElementById('bfsStart').value);
+  const steps = [];
+  const visited = new Set();
+  const queue = [startId];
+  visited.add(startId);
+  const nc = {}, ec = {};
+  
+  nc[startId] = '#f97316';
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Khởi tạo: đỉnh ${nodeLabel(startId)}` });
+
+  const order = [];
+  while (queue.length > 0) {
+    const u = queue.shift();
+    nc[u] = '#22d3a5';
+    order.push(nodeLabel(u));
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Thăm đỉnh ${nodeLabel(u)}` });
+    
+    const neighbors = getNeighbors(u);
+    neighbors.forEach(({ v, edgeId }) => {
+      if (!visited.has(v)) {
+        visited.add(v);
+        queue.push(v);
+        nc[v] = '#f97316';
+        ec[edgeId] = '#f97316';
+        steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Tìm thấy ${nodeLabel(v)} từ ${nodeLabel(u)}` });
+      }
+    });
+  }
+  
+  vizSteps = steps;
+  vizStep = 0;
+  applyVizStep();
+  document.getElementById('bfsResult').textContent = `BFS: ${order.join(' → ')}`;
+}
+
+// ===== DFS =====
+function runDFS() {
+  if (G.nodes.length === 0) return;
+  resetViz();
+  const startId = parseInt(document.getElementById('dfsStart').value);
+  const steps = [];
+  const visited = new Set();
+  const nc = {}, ec = {};
+  const order = [];
+
+  function dfs(u) {
+    visited.add(u);
+    nc[u] = '#f97316';
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Vào đỉnh ${nodeLabel(u)}` });
+    order.push(nodeLabel(u));
+    nc[u] = '#22d3a5';
+    getNeighbors(u).forEach(({ v, edgeId }) => {
+      if (!visited.has(v)) {
+        ec[edgeId] = '#f97316';
+        steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Đi từ ${nodeLabel(u)} → ${nodeLabel(v)}` });
+        dfs(v);
+      }
+    });
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Ra đỉnh ${nodeLabel(u)}` });
+  }
+  
+  dfs(startId);
+  vizSteps = steps;
+  vizStep = 0;
+  applyVizStep();
+  document.getElementById('dfsResult').textContent = `DFS: ${order.join(' → ')}`;
+}
+
+// ===== DIJKSTRA =====
+function runDijkstra() {
+  if (G.nodes.length < 2) return;
+  resetViz();
+  const startId = parseInt(document.getElementById('dijkStart').value);
+  const endId = parseInt(document.getElementById('dijkEnd').value);
+  if (startId === endId) { document.getElementById('dijkResult').textContent = 'Chọn 2 đỉnh khác nhau!'; return; }
+
+  const dist = {}, prev = {}, prevEdge = {};
+  const unvisited = new Set();
+  G.nodes.forEach(n => { dist[n.id] = Infinity; unvisited.add(n.id); });
+  dist[startId] = 0;
+  const steps = [];
+  const nc = {}, ec = {};
+  nc[startId] = '#f97316';
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Bắt đầu từ ${nodeLabel(startId)}, dist=0` });
+
+  while (unvisited.size > 0) {
+    let u = null, minD = Infinity;
+    unvisited.forEach(id => { if (dist[id] < minD) { minD = dist[id]; u = id; } });
+    if (u === null || minD === Infinity) break;
+    unvisited.delete(u);
+    nc[u] = '#22d3a5';
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Xử lý ${nodeLabel(u)}, dist=${dist[u]}` });
+
+    getNeighbors(u).forEach(({ v, w, edgeId }) => {
+      if (!unvisited.has(v)) return;
+      const alt = dist[u] + w;
+      if (alt < dist[v]) {
+        dist[v] = alt;
+        prev[v] = u;
+        prevEdge[v] = edgeId;
+        nc[v] = '#f97316';
+        steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Cập nhật ${nodeLabel(v)}: dist=${alt}` });
+      }
+    });
+  }
+
+  // Trace path
+  if (dist[endId] === Infinity) {
+    document.getElementById('dijkResult').textContent = `Không có đường từ ${nodeLabel(startId)} đến ${nodeLabel(endId)}`;
+    vizSteps = steps; vizStep = vizSteps.length - 1; applyVizStep(); return;
+  }
+
+  const path = [];
+  let cur = endId;
+  while (cur !== undefined) {
+    path.unshift(cur);
+    if (prevEdge[cur]) ec[prevEdge[cur]] = '#a855f7';
+    if (cur === startId) break;
+    cur = prev[cur];
+  }
+  path.forEach(id => nc[id] = '#a855f7');
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Đường đi: ${path.map(nodeLabel).join(' → ')} (tổng: ${dist[endId]})` });
+
+  vizSteps = steps;
+  vizStep = vizSteps.length - 1;
+  applyVizStep();
+  document.getElementById('dijkResult').textContent = `Đường: ${path.map(nodeLabel).join(' → ')}\nTổng: ${dist[endId]}`;
+}
+
+// ===== BIPARTITE =====
+function checkBipartite() {
+  resetViz();
+  const color = {};
+  const nc = {}, ec = {};
+  let bipartite = true;
+  const steps = [];
+  const setColors = ['#4f8ef7', '#22d3a5'];
+
+  for (const node of G.nodes) {
+    if (color[node.id] !== undefined) continue;
+    const queue = [node.id];
+    color[node.id] = 0;
+    nc[node.id] = setColors[0];
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Tô màu ${nodeLabel(node.id)} = nhóm 0` });
+    
+    while (queue.length > 0) {
+      const u = queue.shift();
+      for (const { v, edgeId } of getNeighbors(u)) {
+        if (color[v] === undefined) {
+          color[v] = 1 - color[u];
+          nc[v] = setColors[color[v]];
+          ec[edgeId] = '#64748b';
+          queue.push(v);
+          steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Tô màu ${nodeLabel(v)} = nhóm ${color[v]}` });
+        } else if (color[v] === color[u]) {
+          bipartite = false;
+          nc[u] = '#ef4444'; nc[v] = '#ef4444'; ec[edgeId] = '#ef4444';
+          steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `❌ Xung đột: ${nodeLabel(u)}-${nodeLabel(v)} cùng nhóm!` });
+        }
+      }
+    }
+  }
+
+  vizSteps = steps;
+  vizStep = vizSteps.length - 1;
+  applyVizStep();
+  if (bipartite) {
+    const g0 = G.nodes.filter(n => color[n.id] === 0).map(n => n.label).join(', ');
+    const g1 = G.nodes.filter(n => color[n.id] === 1).map(n => n.label).join(', ');
+    document.getElementById('bipartiteResult').className = 'result-box success';
+    document.getElementById('bipartiteResult').textContent = `✅ ĐỒ THỊ 2 PHÍA\nNhóm 1: {${g0}}\nNhóm 2: {${g1}}`;
+  } else {
+    document.getElementById('bipartiteResult').className = 'result-box error';
+    document.getElementById('bipartiteResult').textContent = `❌ KHÔNG PHẢI đồ thị 2 phía`;
+  }
+}
+
+// ===== REPRESENTATIONS =====
+let currentRepr = 'matrix';
+function showRepr(type) {
+  currentRepr = type;
+  document.querySelectorAll('.repr-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['matrix', 'adjlist', 'edgelist'][i] === type);
+  });
+  ['matrix', 'adjlist', 'edgelist'].forEach(t => {
+    document.getElementById('repr-' + t).style.display = t === type ? 'block' : 'none';
+  });
+  generateReprs();
+}
+
+function generateReprs() {
+  const n = G.nodes.length;
+  if (n === 0) {
+    document.getElementById('matrixDisplay').textContent = 'Chưa có đỉnh.';
+    document.getElementById('adjListDisplay').textContent = 'Chưa có đỉnh.';
+    document.getElementById('edgeListDisplay').textContent = 'Chưa có cạnh.';
+    return;
+  }
+
+  // Adjacency Matrix
+  const mat = Array.from({ length: n }, () => Array(n).fill(0));
+  G.edges.forEach(e => {
+    const ui = G.nodes.findIndex(x => x.id === e.u);
+    const vi = G.nodes.findIndex(x => x.id === e.v);
+    if (ui < 0 || vi < 0) return;
+    mat[ui][vi] = e.w;
+    if (!G.directed) mat[vi][ui] = e.w;
+  });
+  let matStr = '   ' + G.nodes.map(n => n.label.padStart(3)).join('') + '\n';
+  mat.forEach((row, i) => {
+    matStr += G.nodes[i].label.padStart(2) + ' ' + row.map(v => String(v).padStart(3)).join('') + '\n';
+  });
+  document.getElementById('matrixDisplay').textContent = matStr;
+
+  // Adjacency List
+  let adjStr = '';
+  G.nodes.forEach(n => {
+    const neighbors = getNeighbors(n.id).map(({ v, w }) => `${nodeLabel(v)}(${w})`).join(', ');
+    adjStr += `${n.label}: [${neighbors}]\n`;
+  });
+  document.getElementById('adjListDisplay').textContent = adjStr || 'Không có cạnh.';
+
+  // Edge List
+  let edgeStr = G.edges.map(e => {
+    const u = nodeLabel(e.u), v = nodeLabel(e.v);
+    return `${u} ${G.directed ? '→' : '—'} ${v}  (w=${e.w})`;
+  }).join('\n');
+  document.getElementById('edgeListDisplay').textContent = edgeStr || 'Không có cạnh.';
+}
+
+function importFromRepr() {
+  const type = document.getElementById('inputType').value;
+  const raw = document.getElementById('inputData').value.trim();
+  const labelsInput = document.getElementById('nodeLabelsInput').value.trim();
+  const result = document.getElementById('importResult');
+  if (!raw) { result.textContent = 'Nhập dữ liệu trước!'; return; }
+
+  clearGraph();
+  try {
+    if (type === 'matrix') {
+      const rows = raw.split('\n').map(r => r.trim().split(/\s+/).map(Number));
+      const n = rows.length;
+      const labels = labelsInput ? labelsInput.split(',').map(s => s.trim()) : Array.from({ length: n }, (_, i) => String.fromCharCode(65 + i));
+      const cx = 150, cy = 100, r = Math.min(150, 60 + n * 20);
+      for (let i = 0; i < n; i++) {
+        const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+        G.nodes.push({ id: i, label: labels[i] || String(i), x: cx + r * Math.cos(angle) + 200, y: cy + r * Math.sin(angle) + 100 });
+        G.nextId = i + 1;
+      }
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        if (rows[i] && rows[i][j] > 0) {
+          if (!G.directed && j <= i) continue;
+          G.edges.push({ id: G.nextEdgeId++, u: i, v: j, w: rows[i][j] });
+        }
+      }
+    } else if (type === 'adjlist') {
+      const nodeMap = {};
+      raw.split('\n').forEach(line => {
+        const [head, ...rest] = line.split(':');
+        const label = head.trim();
+        if (!nodeMap[label]) {
+          nodeMap[label] = G.nextId++;
+          G.nodes.push({ id: nodeMap[label], label, x: 100 + Object.keys(nodeMap).length * 60, y: 200 });
+        }
+        (rest.join(':') || '').trim().split(/\s+/).forEach(nb => {
+          const nbl = nb.trim();
+          if (!nbl) return;
+          if (!nodeMap[nbl]) { nodeMap[nbl] = G.nextId++; G.nodes.push({ id: nodeMap[nbl], label: nbl, x: 100 + Object.keys(nodeMap).length * 60, y: 300 }); }
+          G.edges.push({ id: G.nextEdgeId++, u: nodeMap[label], v: nodeMap[nbl], w: 1 });
+        });
+      });
+      autoLayout();
+    } else if (type === 'edgelist') {
+      const nodeMap = {};
+      raw.split('\n').forEach(line => {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length < 2) return;
+        const [ul, vl, ...rest] = parts;
+        const w = rest.length > 0 ? parseInt(rest[0]) : 1;
+        [ul, vl].forEach(l => { if (!nodeMap[l]) { nodeMap[l] = G.nextId++; G.nodes.push({ id: nodeMap[l], label: l, x: 100, y: 100 }); } });
+        G.edges.push({ id: G.nextEdgeId++, u: nodeMap[ul], v: nodeMap[vl], w: isNaN(w) ? 1 : w });
+      });
+      autoLayout();
+    }
+    result.className = 'result-box success';
+    result.textContent = `✅ Import thành công!\n${G.nodes.length} đỉnh, ${G.edges.length} cạnh`;
+    updateSelects(); drawAll();
+  } catch (err) {
+    result.className = 'result-box error';
+    result.textContent = '❌ Lỗi: ' + err.message;
+  }
+}
+
+function autoLayout() {
+  const n = G.nodes.length;
+  if (n === 0) return;
+  const canvas = getCanvas('mainCanvas');
+  const cx = (canvas.width || 600) / 2, cy = (canvas.height || 400) / 2;
+  const r = Math.min(cx, cy) * 0.7;
+  G.nodes.forEach((nd, i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    nd.x = cx + r * Math.cos(angle);
+    nd.y = cy + r * Math.sin(angle);
+  });
+}
+
+// ===== ADVANCED ALGORITHMS =====
+function resetAdvViz() {
+  advVizSteps = []; advVizStep = 0;
+  advNodeColors = {}; advEdgeColors = {}; advEdgeLabels = {};
+  if (advAutoPlayTimer) { clearInterval(advAutoPlayTimer); advAutoPlayTimer = null; document.getElementById('btnAdvAutoPlay').textContent = '▶ Auto Play'; }
+  document.getElementById('advStepInfo').textContent = '—';
+  ['primResult', 'kruskalResult', 'fordResult', 'fleuryResult', 'hierholzerResult'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.className = 'result-box'; el.textContent = 'Nhấn Chạy...'; }
+  });
+  drawAll();
+}
+
+function applyAdvStep() {
+  if (advVizSteps.length === 0) return;
+  const step = advVizSteps[Math.min(advVizStep, advVizSteps.length - 1)];
+  advNodeColors = { ...step.nodeColors };
+  advEdgeColors = { ...step.edgeColors };
+  advEdgeLabels = step.edgeLabels ? { ...step.edgeLabels } : {};
+  document.getElementById('advStepInfo').textContent = `Bước ${advVizStep + 1}/${advVizSteps.length}: ${step.desc || ''}`;
+  drawAll();
+}
+
+function advNextStep() { if (advVizStep < advVizSteps.length - 1) { advVizStep++; applyAdvStep(); } }
+function advPrevStep() { if (advVizStep > 0) { advVizStep--; applyAdvStep(); } }
+
+function toggleAdvAutoPlay() {
+  const btn = document.getElementById('btnAdvAutoPlay');
+  if (advAutoPlayTimer) {
+    clearInterval(advAutoPlayTimer); advAutoPlayTimer = null;
+    btn.textContent = '▶ Auto Play';
+  } else {
+    if (advVizSteps.length === 0) return;
+    advVizStep = 0;
+    const speed = parseInt(document.getElementById('advSpeedSlider').value);
+    btn.textContent = '⏸ Pause';
+    advAutoPlayTimer = setInterval(() => {
+      if (advVizStep >= advVizSteps.length - 1) {
+        clearInterval(advAutoPlayTimer); advAutoPlayTimer = null;
+        btn.textContent = '▶ Auto Play';
+      } else { advVizStep++; applyAdvStep(); }
+    }, speed);
+    applyAdvStep();
+  }
+}
+
+function selectAlgo(name) {
+  currentAlgo = name;
+  document.querySelectorAll('.algo-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['prim','kruskal','ford','fleury','hierholzer'][i] === name);
+  });
+  document.querySelectorAll('.algo-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('algo-' + name).classList.add('active');
+  resetAdvViz();
+}
+
+// ===== PRIM =====
+function runPrim() {
+  if (G.nodes.length < 2) return;
+  resetAdvViz();
+  const startId = parseInt(document.getElementById('primStart').value);
+  const steps = [];
+  const nc = {}, ec = {};
+  const inMST = new Set([startId]);
+  nc[startId] = '#eab308';
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Bắt đầu từ ${nodeLabel(startId)}` });
+  
+  let totalW = 0;
+  const mstEdges = [];
+
+  while (inMST.size < G.nodes.length) {
+    let best = null, bestW = Infinity, bestEdgeId = null;
+    G.edges.forEach(e => {
+      const uIn = inMST.has(e.u), vIn = inMST.has(e.v);
+      if ((uIn && !vIn) || (!G.directed && !uIn && vIn)) {
+        const w = e.w;
+        const candidate = uIn ? e.v : e.u;
+        if (w < bestW) { bestW = w; best = candidate; bestEdgeId = e.id; }
+      }
+    });
+    if (!best) break;
+    inMST.add(best);
+    nc[best] = '#eab308';
+    ec[bestEdgeId] = '#eab308';
+    totalW += bestW;
+    mstEdges.push(bestEdgeId);
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Thêm đỉnh ${nodeLabel(best)}, cạnh w=${bestW}` });
+  }
+
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `✅ MST hoàn thành! Tổng trọng số = ${totalW}` });
+  advVizSteps = steps;
+  advVizStep = advVizSteps.length - 1;
+  applyAdvStep();
+  const res = document.getElementById('primResult');
+  res.className = 'result-box success';
+  res.textContent = `Prim MST\nTổng trọng số: ${totalW}\nCác cạnh: ${mstEdges.map(eid => { const e = G.edges.find(x => x.id === eid); return e ? `${nodeLabel(e.u)}-${nodeLabel(e.v)}(${e.w})` : ''; }).join(', ')}`;
+}
+
+// ===== KRUSKAL =====
+function runKruskal() {
+  resetAdvViz();
+  const steps = [];
+  const nc = {}, ec = {};
+  
+  // Union-Find
+  const parent = {}, rank = {};
+  G.nodes.forEach(n => { parent[n.id] = n.id; rank[n.id] = 0; });
+  function find(x) { return parent[x] === x ? x : (parent[x] = find(parent[x])); }
+  function union(a, b) {
+    const ra = find(a), rb = find(b);
+    if (ra === rb) return false;
+    if (rank[ra] < rank[rb]) parent[ra] = rb;
+    else if (rank[ra] > rank[rb]) parent[rb] = ra;
+    else { parent[rb] = ra; rank[ra]++; }
+    return true;
+  }
+
+  const sorted = [...G.edges].sort((a, b) => a.w - b.w);
+  let totalW = 0;
+  const mstEdges = [];
+
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Sắp xếp ${G.edges.length} cạnh theo trọng số` });
+
+  sorted.forEach(e => {
+    const tempEc = { ...ec };
+    tempEc[e.id] = '#64748b'; // considering
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...tempEc }, desc: `Xét cạnh ${nodeLabel(e.u)}-${nodeLabel(e.v)} w=${e.w}` });
+    
+    if (union(e.u, e.v)) {
+      ec[e.id] = '#eab308';
+      nc[e.u] = '#eab308'; nc[e.v] = '#eab308';
+      mstEdges.push(e);
+      totalW += e.w;
+      steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `✅ Thêm cạnh ${nodeLabel(e.u)}-${nodeLabel(e.v)}, tổng=${totalW}` });
+    } else {
+      steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `❌ Bỏ qua (tạo chu trình)` });
+    }
+    if (mstEdges.length === G.nodes.length - 1) return;
+  });
+
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `✅ Kruskal MST hoàn thành! Tổng = ${totalW}` });
+  advVizSteps = steps;
+  advVizStep = advVizSteps.length - 1;
+  applyAdvStep();
+  const res = document.getElementById('kruskalResult');
+  res.className = 'result-box success';
+  res.textContent = `Kruskal MST\nTổng trọng số: ${totalW}\nCác cạnh: ${mstEdges.map(e => `${nodeLabel(e.u)}-${nodeLabel(e.v)}(${e.w})`).join(', ')}`;
+}
+
+// ===== FORD-FULKERSON =====
+function runFordFulkerson() {
+  if (G.nodes.length < 2) return;
+  resetAdvViz();
+  const sourceId = parseInt(document.getElementById('fordSource').value);
+  const sinkId = parseInt(document.getElementById('fordSink').value);
+  if (sourceId === sinkId) { document.getElementById('fordResult').textContent = 'Chọn 2 đỉnh khác nhau!'; return; }
+
+  const steps = [];
+  const nc = {}, ec = {};
+
+  // Build capacity matrix
+  const cap = {};
+  const adj = {};
+  G.nodes.forEach(n => { adj[n.id] = []; cap[n.id] = {}; G.nodes.forEach(m => cap[n.id][m.id] = 0); });
+  G.edges.forEach(e => {
+    cap[e.u][e.v] += e.w;
+    if (!adj[e.u].includes(e.v)) adj[e.u].push(e.v);
+    if (!adj[e.v].includes(e.u)) adj[e.v].push(e.u);
+    if (!G.directed) { cap[e.v][e.u] += e.w; }
+  });
+
+  const flow = {};
+  G.nodes.forEach(n => { flow[n.id] = {}; G.nodes.forEach(m => flow[n.id][m.id] = 0); });
+
+  function bfsPath() {
+    const par = { [sourceId]: null };
+    const q = [sourceId];
+    while (q.length > 0) {
+      const u = q.shift();
+      if (u === sinkId) return par;
+      for (const v of (adj[u] || [])) {
+        if (par[v] === undefined && cap[u][v] - flow[u][v] > 0) {
+          par[v] = u;
+          q.push(v);
+        }
+      }
+    }
+    return null;
+  }
+
+  let maxFlow = 0;
+  let iteration = 0;
+
+  nc[sourceId] = '#f97316';
+  nc[sinkId] = '#a855f7';
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Nguồn: ${nodeLabel(sourceId)}, Đích: ${nodeLabel(sinkId)}` });
+
+  while (true) {
+    const par = bfsPath();
+    if (!par) break;
+    iteration++;
+    
+    // Find min cap
+    let pathFlow = Infinity, cur = sinkId;
+    const pathNodes = [];
+    while (cur !== sourceId) { pathFlow = Math.min(pathFlow, cap[par[cur]][cur] - flow[par[cur]][cur]); cur = par[cur]; }
+    
+    cur = sinkId;
+    while (cur !== sourceId) {
+      flow[par[cur]][cur] += pathFlow;
+      flow[cur][par[cur]] -= pathFlow;
+      pathNodes.unshift(cur);
+      cur = par[cur];
+    }
+    pathNodes.unshift(sourceId);
+    
+    maxFlow += pathFlow;
+    const tempEc = { ...ec };
+    pathNodes.forEach(n => nc[n] = n === sourceId ? '#f97316' : n === sinkId ? '#a855f7' : '#22d3a5');
+    // Highlight path edges
+    for (let i = 0; i < pathNodes.length - 1; i++) {
+      const eid = G.edges.find(e => e.u === pathNodes[i] && e.v === pathNodes[i+1] || (!G.directed && e.u === pathNodes[i+1] && e.v === pathNodes[i]));
+      if (eid) tempEc[eid.id] = '#22d3a5';
+    }
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...tempEc }, desc: `Iter ${iteration}: đường tăng +${pathFlow}, tổng luồng=${maxFlow}` });
+  }
+
+  // Show final flows on edges
+  const el = {};
+  G.edges.forEach(e => { const f = flow[e.u][e.v]; if (f > 0) { el[e.id] = `${f}/${e.w}`; ec[e.id] = '#22d3a5'; } });
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, edgeLabels: el, desc: `✅ Luồng cực đại = ${maxFlow}` });
+
+  advVizSteps = steps;
+  advVizStep = advVizSteps.length - 1;
+  applyAdvStep();
+  const res = document.getElementById('fordResult');
+  res.className = 'result-box success';
+  res.textContent = `Ford-Fulkerson\nLuồng cực đại: ${maxFlow}\nSố lần tăng: ${iteration}`;
+}
+
+// ===== FLEURY =====
+function runFleury() {
+  resetAdvViz();
+  const startId = parseInt(document.getElementById('fleuryStart').value);
+  const steps = [];
+  const nc = {}, ec = {};
+
+  // Check Euler conditions
+  const degrees = {};
+  G.nodes.forEach(n => degrees[n.id] = 0);
+  G.edges.forEach(e => { degrees[e.u]++; if (!G.directed) degrees[e.v]++; });
+  const oddNodes = G.nodes.filter(n => degrees[n.id] % 2 !== 0);
+
+  if (oddNodes.length !== 0 && oddNodes.length !== 2) {
+    document.getElementById('fleuryResult').className = 'result-box error';
+    document.getElementById('fleuryResult').textContent = `❌ Không có đường đi Euler!\n${oddNodes.length} đỉnh có bậc lẻ (cần 0 hoặc 2)`;
+    return;
+  }
+
+  if (oddNodes.length === 2 && !oddNodes.find(n => n.id === startId)) {
+    document.getElementById('fleuryResult').textContent = `ℹ️ Đỉnh bắt đầu nên là ${oddNodes[0].label} hoặc ${oddNodes[1].label}`;
+  }
+
+  // Deep copy edges
+  let remainEdges = G.edges.map(e => ({ ...e }));
+  let cur = startId;
+  const path = [cur];
+  nc[cur] = '#f97316';
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Bắt đầu tại ${nodeLabel(cur)}` });
+
+  function isConnected(edges, src) {
+    if (edges.length === 0) return true;
+    const visited = new Set([src]);
+    const queue = [src];
+    while (queue.length > 0) {
+      const u = queue.shift();
+      edges.forEach(e => {
+        if (e.u === u && !visited.has(e.v)) { visited.add(e.v); queue.push(e.v); }
+        if (!G.directed && e.v === u && !visited.has(e.u)) { visited.add(e.u); queue.push(e.u); }
+      });
+    }
+    const active = new Set(edges.flatMap(e => G.directed ? [e.u, e.v] : [e.u, e.v]));
+    return [...active].every(id => visited.has(id));
+  }
+
+  let iter = 0;
+  while (remainEdges.length > 0 && iter++ < 1000) {
+    const candidates = remainEdges.filter(e => e.u === cur || (!G.directed && e.v === cur));
+    if (candidates.length === 0) break;
+
+    let chosen = candidates[0];
+    if (candidates.length > 1) {
+      for (const cand of candidates) {
+        const testEdges = remainEdges.filter(e => e.id !== cand.id);
+        if (isConnected(testEdges, cur)) { chosen = cand; break; }
+      }
+    }
+
+    const next = chosen.u === cur ? chosen.v : chosen.u;
+    ec[chosen.id] = '#f97316';
+    nc[cur] = '#22d3a5';
+    nc[next] = '#f97316';
+    remainEdges = remainEdges.filter(e => e.id !== chosen.id);
+    path.push(next);
+    cur = next;
+    steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Đi ${nodeLabel(path[path.length-2])} → ${nodeLabel(next)}` });
+  }
+
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `✅ Đường Euler: ${path.map(nodeLabel).join(' → ')}` });
+  advVizSteps = steps;
+  advVizStep = advVizSteps.length - 1;
+  applyAdvStep();
+  const res = document.getElementById('fleuryResult');
+  res.className = 'result-box success';
+  res.textContent = `Fleury\nĐường đi: ${path.map(nodeLabel).join(' → ')}\n${oddNodes.length === 0 ? '✅ Chu trình Euler' : '✅ Đường đi Euler'}`;
+}
+
+// ===== HIERHOLZER =====
+function runHierholzer() {
+  resetAdvViz();
+  const startId = parseInt(document.getElementById('hierholzerStart').value);
+  const steps = [];
+  const nc = {}, ec = {};
+
+  // Check all degrees even
+  const degrees = {};
+  G.nodes.forEach(n => degrees[n.id] = 0);
+  G.edges.forEach(e => { degrees[e.u]++; if (!G.directed) degrees[e.v]++; });
+  const oddNodes = G.nodes.filter(n => degrees[n.id] % 2 !== 0);
+  if (oddNodes.length !== 0) {
+    document.getElementById('hierholzerResult').className = 'result-box error';
+    document.getElementById('hierholzerResult').textContent = `❌ Không có chu trình Euler!\nCần tất cả đỉnh có bậc chẵn. Hiện có ${oddNodes.length} đỉnh bậc lẻ.`;
+    return;
+  }
+
+  // Build adjacency with edge tracking
+  const adj = {};
+  G.nodes.forEach(n => adj[n.id] = []);
+  const usedEdges = new Set();
+  G.edges.forEach(e => {
+    adj[e.u].push({ to: e.v, eid: e.id });
+    if (!G.directed) adj[e.v].push({ to: e.u, eid: e.id });
+  });
+
+  const stack = [startId];
+  const circuit = [];
+  const adjPtr = {};
+  G.nodes.forEach(n => adjPtr[n.id] = 0);
+
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Bắt đầu thuật toán Hierholzer tại ${nodeLabel(startId)}` });
+
+  while (stack.length > 0) {
+    const v = stack[stack.length - 1];
+    let found = false;
+    while (adjPtr[v] < adj[v].length) {
+      const { to, eid } = adj[v][adjPtr[v]];
+      adjPtr[v]++;
+      if (!usedEdges.has(eid)) {
+        usedEdges.add(eid);
+        stack.push(to);
+        ec[eid] = '#a855f7';
+        nc[v] = '#f97316';
+        steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Đi ${nodeLabel(v)} → ${nodeLabel(to)}` });
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      circuit.unshift(stack.pop());
+      if (circuit[0] !== undefined) nc[circuit[0]] = '#22d3a5';
+      steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `Backtrack: thêm ${nodeLabel(circuit[0])} vào chu trình` });
+    }
+  }
+
+  G.edges.forEach(e => { if (usedEdges.has(e.id)) ec[e.id] = '#22d3a5'; });
+  circuit.forEach(id => nc[id] = '#22d3a5');
+  steps.push({ nodeColors: { ...nc }, edgeColors: { ...ec }, desc: `✅ Chu trình: ${circuit.map(nodeLabel).join(' → ')}` });
+  
+  advVizSteps = steps;
+  advVizStep = advVizSteps.length - 1;
+  applyAdvStep();
+  const res = document.getElementById('hierholzerResult');
+  res.className = 'result-box success';
+  res.textContent = `Hierholzer\nChu trình: ${circuit.map(nodeLabel).join(' → ')}`;
+}
+
+// ===== HELPERS =====
+function nodeLabel(id) {
+  const n = G.nodes.find(n => n.id === id);
+  return n ? n.label : String(id);
+}
+
+function getNeighbors(uid) {
+  const result = [];
+  G.edges.forEach(e => {
+    if (e.u === uid) result.push({ v: e.v, w: e.w, edgeId: e.id });
+    else if (!G.directed && e.v === uid) result.push({ v: e.u, w: e.w, edgeId: e.id });
+  });
+  return result;
+}
+
+// ===== SPEED SLIDER =====
+document.getElementById('speedSlider').addEventListener('input', function () {
+  document.getElementById('speedLabel').textContent = (this.value / 1000).toFixed(1) + 's';
+});
+
+// ===== INIT =====
+setTimeout(() => {
+  resizeAllCanvases();
+  loadSample('weighted');
+}, 100);
+</script>
+</body>
+</html>
